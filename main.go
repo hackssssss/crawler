@@ -11,9 +11,6 @@ import (
 	"strings"
 	"time"
 )
-
-const StudyGolangurl = `https://www.qiushibaike.com/hot/`
-const Qiushibaikeurl = `https://www.qiushibaike.com/hot/`
 const xia55Url = `https://www.55xia.com/`
 
 func TrimString(str string) string {
@@ -34,16 +31,34 @@ func write2DB(title, href, filmDetail string) {
 	if title == "" || href == "" || filmDetail == "" {
 		return
 	}
+	query := []Crawl55xia{}
+	//First传slice，不存在的话，err==nil，但是len(query) == 0
+	//First传结构体引用，不存在的话，err == gorm.ErrRecordNotFound
+	err := db.Where("title=?", title).First(&query).Error //每次都检查是否存在，存在就在原来基础上更新，理论上只有一条数据
+	if err != nil {
+		fmt.Println("find: ",err)
+		return
+	}
 	data := Crawl55xia{
 		Title:      title,
 		ImgHref:    href,
 		DetailPage: filmDetail,
 	}
-	err := db.Create(&data).Error
-	if err != nil {
-		fmt.Println(err)
+	if len(query) == 0 { //没找到就创建新的
+		err = db.Create(&data).Error
+		if err != nil {
+			fmt.Println("create: ", err)
+			return
+		}
 		return
 	}
+	//找到就更新
+	err = db.Table(data.TableName()).Where("title=?",title).Updates(data).Error
+	if err != nil {
+		fmt.Println("update: ", err)
+		return
+	}
+	return
 }
 
 func crawl55xia() error {
