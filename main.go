@@ -8,10 +8,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
-const xia55Url = `https://www.55xia.com/`
+const xia55Url = `https://www.55xia.com/movie?page=`
 
 func TrimString(str string) string {
 	return strings.TrimSpace(strings.Trim(strings.Trim(str, "\n"), " "))
@@ -61,8 +62,8 @@ func write2DB(title, href, filmDetail string) {
 	return
 }
 
-func crawl55xia() error {
-	resp, err := http.Get(xia55Url)
+func crawl55xia(page int) error {
+	resp, err := http.Get(xia55Url + strconv.Itoa(page))
 	if err != nil {
 		log.Println("http get fail. err ", err)
 		return err
@@ -82,7 +83,7 @@ func crawl55xia() error {
 		log.Fatal("NewDocument fail, ", err)
 		return err
 	}
-	doc.Find(".row").Eq(0).Find(".index-box").Find(".movie-item").Each(func(i int, content *goquery.Selection) {
+	doc.Find(".movie-item").Each(func(i int, content *goquery.Selection) {
 		title, _ := content.Find(".movie-item-in .lazy").Attr("title")
 		picHref, _ := content.Find(".movie-item-in .lazy").Attr("data-src")
 		filmDetail, _ := content.Find(".movie-item-in a").Attr("href")
@@ -116,18 +117,20 @@ func init() {
 	}
 }
 
+const pageLimit = 1
+
 func main() {
 
-	count := 0
+	page := 1
 	for {
-		if err := crawl55xia(); err != nil {
+		if err := crawl55xia(page); err != nil {
 			time.Sleep(time.Second * 2)
 			continue
 		}
-		count++
-		if count >= 1 {
+		if page == pageLimit {
 			break
 		}
+		page++
 		time.Sleep(time.Second)
 	}
 }
