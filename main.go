@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 )
+
 const xia55Url = `https://www.55xia.com/movie?page=`
 
 func TrimString(str string) string {
@@ -19,9 +20,11 @@ func TrimString(str string) string {
 }
 
 type Crawl55xia struct {
-	Title      string `sql:"column:title" json:"title,omitempty"`             //
-	ImgHref    string `sql:"column:img_href" json:"img_href,omitempty"`       //
-	DetailPage string `sql:"column:detail_page" json:"detail_page,omitempty"` //
+	ID         int       `sql:"column:id" json:"id,omitempty"`
+	Title      string    `sql:"column:title" json:"title,omitempty"`             //
+	ImgHref    string    `sql:"column:img_href" json:"img_href,omitempty"`       //
+	DetailPage string    `sql:"column:detail_page" json:"detail_page,omitempty"` //
+	UpdatedAt  time.Time `sql:"column:updated_at" json:"updated_at,omitempty"`   //
 }
 
 func (Crawl55xia) TableName() string {
@@ -37,7 +40,7 @@ func write2DB(title, href, filmDetail string) {
 	//First传结构体引用，不存在的话，err == gorm.ErrRecordNotFound
 	err := db.Where("title=?", title).First(&query).Error //每次都检查是否存在，存在就在原来基础上更新，理论上只有一条数据
 	if err != nil {
-		fmt.Println("find: ",err)
+		fmt.Println("find: ", err)
 		return
 	}
 	data := Crawl55xia{
@@ -46,6 +49,7 @@ func write2DB(title, href, filmDetail string) {
 		DetailPage: filmDetail,
 	}
 	if len(query) == 0 { //没找到就创建新的
+		fmt.Println("create new.")
 		err = db.Create(&data).Error
 		if err != nil {
 			fmt.Println("create: ", err)
@@ -54,7 +58,9 @@ func write2DB(title, href, filmDetail string) {
 		return
 	}
 	//找到就更新
-	err = db.Table(data.TableName()).Where("title=?",title).Updates(data).Error
+	fmt.Println("update new.")
+	data.UpdatedAt = time.Now()
+	err = db.Table(data.TableName()).Where("title=?", title).Updates(data).Error
 	if err != nil {
 		fmt.Println("update: ", err)
 		return
@@ -117,10 +123,9 @@ func init() {
 	}
 }
 
-const pageLimit = 1
+const pageLimit = 5
 
 func main() {
-
 	page := 1
 	for {
 		if err := crawl55xia(page); err != nil {
